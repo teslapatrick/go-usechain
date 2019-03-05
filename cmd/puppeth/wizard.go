@@ -20,6 +20,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"github.com/usechain/go-usechain/common/hexutil"
 	"io/ioutil"
 	"math/big"
 	"net"
@@ -263,6 +264,63 @@ func (w *wizard) readAddress() *common.Address {
 	}
 }
 
+func (w *wizard) readMinerCodeAndStorj() ([]byte, map[common.Hash]common.Hash) {
+	// prepare storage
+	var storj map[common.Hash]common.Hash
+	storj = make(map[common.Hash]common.Hash)
+	fmt.Println()
+	fmt.Println("Add your contract bytecode !")
+	fmt.Printf("> 0x")
+	// storj bytecode
+	var bytecode string
+	var b        []byte
+	for {
+		bytecode = w.readString()
+		b, _ = hexutil.Decode(bytecode)
+		if len(bytecode) == 0 {
+			fmt.Println("Pls Add your contract bytecode!")
+			continue
+		}
+		break
+	}
+	// storj key & value
+	storj = w.readContractStorage()
+	return b, storj
+}
+
+func (w *wizard) readContractStorage() map[common.Hash]common.Hash {
+	var storj map[common.Hash]common.Hash
+	storj = make(map[common.Hash]common.Hash)
+	var tempRpowMinerHash common.Hash
+	for {
+		fmt.Println()
+		fmt.Println("Add new contract storage key (advisable at least one)")
+		fmt.Printf("> 0x")
+		key, err := w.in.ReadString('\n')
+		if err != nil {
+			log.Error("Failed to read user input", "err", err)
+			continue
+		}
+		if key = strings.TrimSpace(key); key == "" {
+			//log.Error("Pls add contract storage key", "err", "Need to add new storage key")
+			return storj
+		}
+		tempRpowMinerHash = common.HexToHash(key)
+
+		fmt.Println()
+		fmt.Println("Add value to the contract storage key(advisable at least one)")
+		fmt.Printf("> 0x")
+		if value, _ := w.in.ReadString('\n'); value != "" {
+			storj[tempRpowMinerHash] = common.HexToHash(value)
+		} else {
+			log.Error("Restart: Pls add value to the contract storage", "err", "Need to add new value")
+			continue
+		}
+
+	}
+
+}
+
 // readDefaultAddress reads a single line from stdin, trimming if from spaces and
 // converts it to an Ethereum address. If an empty line is entered, the default
 // value is returned.
@@ -324,3 +382,35 @@ func (w *wizard) readIPAddress() string {
 		return text
 	}
 }
+// readDefaultYesNo reads a single line from stdin, trimming if from spaces and
+// interpreting it as a 'yes' or a 'no'. If an empty line is entered, the default
+// value is returned.
+func (w *wizard) readDefaultYesNo(def bool) bool {
+	for {
+		fmt.Printf("> ")
+		text, err := w.in.ReadString('\n')
+		if err != nil {
+			log.Crit("Failed to read user input", "err", err)
+		}
+		if text = strings.ToLower(strings.TrimSpace(text)); text == "" {
+			return def
+		}
+		if text == "y" || text == "yes" {
+			return true
+		}
+		if text == "n" || text == "no" {
+			return false
+		}
+		log.Error("Invalid input, expected 'y', 'yes', 'n', 'no' or empty")
+	}
+}
+
+// return the string data that has been added to the num
+func IncreaseHexByNum(indexKeyHash []byte, num int64) []byte {
+	x := big.NewInt(0)
+	y := big.NewInt(int64(num))
+	x.SetBytes(indexKeyHash)
+	x.Add(x, y)
+	return x.Bytes()
+}
+

@@ -15,7 +15,8 @@ used:
 	build/env.sh go run build/ci.go install ./cmd/used
 	@echo "Done building."
 	@echo "Run \"$(GOBIN)/used\" to launch used."
-
+puppeth:
+	build/env.sh go run build/ci.go install ./cmd/puppeth
 swarm:
 	build/env.sh go run build/ci.go install ./cmd/swarm
 	@echo "Done building."

@@ -31,6 +31,19 @@ import (
 	"github.com/usechain/go-usechain/params"
 )
 
+func (w *wizard) addInitContractList() core.GenesisAccount{
+
+	code, storage := w.readMinerCodeAndStorj()
+
+	genesisAcc := core.GenesisAccount{
+		Balance: new(big.Int).Lsh(big.NewInt(0), 0),
+		Code: code,
+	}
+	fmt.Println(">>>>>>>>>>>>code", code)
+	genesisAcc.Storage = storage
+	return genesisAcc
+}
+
 // makeGenesis creates a new genesis struct based on some user input.
 func (w *wizard) makeGenesis() {
 	// Construct a default genesis block
@@ -49,18 +62,18 @@ func (w *wizard) makeGenesis() {
 	}
 	// Figure out which consensus engine to choose
 	fmt.Println()
-	fmt.Println("Which consensus engine to use? (default = clique)")
-	fmt.Println(" 1. Ethash - proof-of-work")
-	fmt.Println(" 2. Clique - proof-of-authority")
+	fmt.Println("Which consensus engine to use? (default = RPOW)")
+	fmt.Println(" 1. RPOW - random-proof-of-work")
+	fmt.Println(" 2. POA - proof-of-authority")
 
 	choice := w.read()
 	switch {
-	case choice == "1":
+	case choice == "" || choice == "1":
 		// In case of ethash, we're pretty much done
 		genesis.Config.Ethash = new(params.EthashConfig)
 		genesis.ExtraData = make([]byte, 32)
 
-	case choice == "" || choice == "2":
+	case choice == "2":
 		// In the case of clique, configure the consensus parameters
 		genesis.Difficulty = big.NewInt(1)
 		genesis.Config.Clique = &params.CliqueConfig{
@@ -114,10 +127,30 @@ func (w *wizard) makeGenesis() {
 		}
 		break
 	}
-	// Add a batch of precompile balances to avoid them getting deleted
-	for i := int64(0); i < 256; i++ {
-		genesis.Alloc[common.BigToAddress(big.NewInt(i))] = core.GenesisAccount{Balance: big.NewInt(1)}
+	// add init miner list contract
+	for {
+		fmt.Println()
+		fmt.Println("Add init contract info for private chain? (advisable yes)")
+		if w.readDefaultYesNo(true) {
+			fmt.Println()
+			fmt.Println("Input new contract address")
+			if address := w.readAddress(); address != nil {
+				genesis.Alloc[*address] = w.addInitContractList()
+			}
+			continue
+		}
+		break
 	}
+
+	fmt.Println()
+	fmt.Println("Should the precompile-addresses (0x1 .. 0xff) be pre-funded with 1 wei? (advisable no)")
+	if w.readDefaultYesNo(false) {
+		// Add a batch of precompile balances to avoid them getting deleted
+		for i := int64(0); i < 256; i++ {
+			genesis.Alloc[common.BigToAddress(big.NewInt(i))] = core.GenesisAccount{Balance: big.NewInt(1)}
+		}
+	}
+
 	// Query the user for some custom extras
 	fmt.Println()
 	fmt.Println("Specify your chain/network ID if you want an explicit one (default = random)")
